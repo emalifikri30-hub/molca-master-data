@@ -1,4 +1,5 @@
 import { useAssetLabels } from "@/lib/labels";
+import { useChangeRequests } from "@/lib/changes";
 import * as React from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
@@ -9,6 +10,7 @@ import {
   CpuIcon,
   MapPinOffIcon,
   QrCodeIcon,
+  StampIcon,
   ShapesIcon,
   UserXIcon,
   WalletIcon,
@@ -61,6 +63,7 @@ type Issue = {
   to:
     | "/assets"
     | "/assets/labels"
+    | "/changes"
     | "/hierarchy"
     | "/classes"
     | "/people"
@@ -80,6 +83,8 @@ function Home() {
   const { data: storesBins } = useStoresBins();
   const { data: codes } = useFailureCodes();
   const { data: labels } = useAssetLabels();
+  const { data: changes } = useChangeRequests();
+  const waitingChanges = (changes ?? []).filter((c) => c.status === "pending");
   const [page, setPage] = React.useState(0);
 
   const located = React.useMemo(() => (reg ? locatedIds(reg) : new Set<string>()), [reg]);
@@ -176,6 +181,14 @@ function Home() {
       n: untagged.length,
       sub: t("md.home.t.untaggedSub", { n: storesBins?.bins.length ?? 0 }),
       to: "/stores",
+    },
+    {
+      icon: StampIcon,
+      label: t("md.home.t.changes"),
+      n: waitingChanges.length,
+      sub: t("md.home.t.changesSub"),
+      to: "/changes",
+      hot: true,
     },
     {
       icon: QrCodeIcon,

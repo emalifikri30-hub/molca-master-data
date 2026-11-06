@@ -6,3 +6,4 @@ export * from "./asset-tags.js";
 export * from "./asset-product-code.js";
 export * from "./asset-product-code-change.js";
 export * from "./asset-label.js";
+export * from "./change-request.js";

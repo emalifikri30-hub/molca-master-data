@@ -6,6 +6,7 @@ const MAINTENANCE_WEB =
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import {
+  StampIcon,
   Check,
   ChevronDown,
   Contrast,
@@ -82,7 +83,8 @@ type Route = {
     | "/people"
     | "/parts"
     | "/stores"
-    | "/failure-codes";
+    | "/failure-codes"
+    | "/changes";
   label: string;
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   group: "overview" | "maintenance" | "field";
@@ -169,6 +171,14 @@ function useRoutes(): Route[] {
       to: "/failure-codes",
       label: t("md.nav.failureCodes"),
       icon: FileWarningIcon,
+      group: "maintenance",
+      show: true,
+    },
+    {
+      id: "changes",
+      to: "/changes",
+      label: t("chg.title"),
+      icon: StampIcon,
       group: "maintenance",
       show: true,
     },

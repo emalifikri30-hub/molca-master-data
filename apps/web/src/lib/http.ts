@@ -1,4 +1,5 @@
 import axios from "axios";
+import { toast } from "sonner";
 
 import type { AxiosError } from "axios";
 
@@ -23,6 +24,21 @@ const http = axios.create({ withCredentials: true });
 http.interceptors.request.use((config) => {
   config.headers.set("x-trace-id", config.headers.get("x-trace-id") ?? crypto.randomUUID());
   return config;
+});
+
+// A sensitive Master Data change is held for a second person's approval (202): say so wherever it was made.
+http.interceptors.response.use((res) => {
+  if (
+    res.status === 202 &&
+    (res.data as { data?: { pendingApproval?: boolean } })?.data?.pendingApproval
+  )
+    toast.info(
+      document.documentElement.lang === "en"
+        ? "Sent for approval: the change applies once someone else approves it (Change approval)."
+        : "Diajukan untuk persetujuan: perubahan berlaku setelah disetujui orang lain (Persetujuan perubahan).",
+      { duration: 7000 },
+    );
+  return res;
 });
 
 // --- session-expired pub/sub ------------------------------------------------

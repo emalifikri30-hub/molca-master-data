@@ -29,6 +29,7 @@ function Strip({
 type To =
   | "/assets"
   | "/assets/labels"
+  | "/changes"
   | "/hierarchy"
   | "/classes"
   | "/people"

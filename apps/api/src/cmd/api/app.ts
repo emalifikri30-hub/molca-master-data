@@ -32,6 +32,7 @@ import { createPeopleHandler } from "../../module/mes/people/people-handler.js";
 import { createCrewsHandler } from "../../module/mes/crews/crews-handler.js";
 import { mountMroCatalog } from "../../module/mes/catalog/mro-catalog.js";
 import { mountAssetLabels } from "../../module/mes/asset-labels/asset-labels.js";
+import { mountChangeRequests } from "../../module/mes/change-requests/change-requests.js";
 import { createHierarchyTreeHandler } from "../../module/mes/site-hierarchy/hierarchy-tree-handler.js";
 import { createAreasHandler } from "../../module/mes/areas/areas-handler.js";
 import { createWorkCentersHandler } from "../../module/mes/work-centers/work-centers-handler.js";
@@ -114,6 +115,9 @@ api.use(
 api.use("*", transactionMiddleware(container.resolve("transact")));
 // The system writes each save's audit rows, in that transaction (F-14 §9.2).
 api.use("*", auditMiddleware(container.resolve("auditLogService"), container.resolve("db")));
+
+// Change control: sensitive Master Data changes wait for a second person (PRD Workflow & approval).
+mountChangeRequests(api, container);
 
 api.route("/tenant", createTenantHandler());
 

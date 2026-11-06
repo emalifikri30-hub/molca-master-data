@@ -176,6 +176,43 @@ const SCOPED = {
  * tenant-links.test.ts).
  */
 const NOT_LINKS: Record<string, Record<string, string>> = {
+  // MolcaDx local fork tables (mounted handlers that query within the tenant themselves)
+  asset_label: {
+    ...SCOPED,
+    assetId: "local MolcaDx fork: the handler reads it with a tenant filter (asset-labels.ts)",
+  },
+  change_request: {
+    ...SCOPED,
+    entityId: "polymorphic: id of the row the change targets; its table is entity",
+    makerId: "Keycloak subject of the person who asked, not a row",
+  },
+  person: {
+    ...SCOPED,
+    siteId: "local MolcaDx fork: the handler reads it with a tenant filter (people)",
+  },
+  crew: {
+    ...SCOPED,
+    siteId: "local MolcaDx fork: the handler reads it with a tenant filter (crews)",
+    leaderId: "local MolcaDx fork: the handler reads it with a tenant filter (crews)",
+  },
+  item: { ...SCOPED },
+  item_cost: {
+    ...SCOPED,
+    itemId: "local MolcaDx fork: the handler reads it with a tenant filter (mro-catalog.ts)",
+  },
+  store: {
+    ...SCOPED,
+    siteId: "local MolcaDx fork: the handler reads it with a tenant filter (mro-catalog.ts)",
+    workUnitId: "local MolcaDx fork: the handler reads it with a tenant filter (mro-catalog.ts)",
+  },
+  bin: {
+    ...SCOPED,
+    storeId: "local MolcaDx fork: the handler reads it with a tenant filter (mro-catalog.ts)",
+  },
+  failure_code: {
+    ...SCOPED,
+    labelId: "local MolcaDx fork: the handler reads it with a tenant filter (mro-catalog.ts)",
+  },
   area_class: { ...SCOPED },
   area: { ...SCOPED },
   asset_class: { ...SCOPED },

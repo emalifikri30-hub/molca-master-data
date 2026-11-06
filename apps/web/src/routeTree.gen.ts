@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from "./routes/__root";
 import { Route as IndexRouteImport } from "./routes/index";
+import { Route as ChangesRouteImport } from "./routes/changes";
 import { Route as ClassesRouteImport } from "./routes/classes";
 import { Route as FailureCodesRouteImport } from "./routes/failure-codes";
 import { Route as HierarchyRouteImport } from "./routes/hierarchy";
@@ -24,6 +25,11 @@ import { Route as AssetsLabelsRouteImport } from "./routes/assets.labels";
 const IndexRoute = IndexRouteImport.update({
   id: "/",
   path: "/",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const ChangesRoute = ChangesRouteImport.update({
+  id: "/changes",
+  path: "/changes",
   getParentRoute: () => rootRouteImport,
 } as any);
 const ClassesRoute = ClassesRouteImport.update({
@@ -79,6 +85,7 @@ const AssetsLabelsRoute = AssetsLabelsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
+  "/changes": typeof ChangesRoute;
   "/classes": typeof ClassesRoute;
   "/failure-codes": typeof FailureCodesRoute;
   "/hierarchy": typeof HierarchyRoute;
@@ -92,6 +99,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
+  "/changes": typeof ChangesRoute;
   "/classes": typeof ClassesRoute;
   "/failure-codes": typeof FailureCodesRoute;
   "/hierarchy": typeof HierarchyRoute;
@@ -106,6 +114,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   "/": typeof IndexRoute;
+  "/changes": typeof ChangesRoute;
   "/classes": typeof ClassesRoute;
   "/failure-codes": typeof FailureCodesRoute;
   "/hierarchy": typeof HierarchyRoute;
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
     | "/"
+    | "/changes"
     | "/classes"
     | "/failure-codes"
     | "/hierarchy"
@@ -134,6 +144,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/"
+    | "/changes"
     | "/classes"
     | "/failure-codes"
     | "/hierarchy"
@@ -147,6 +158,7 @@ export interface FileRouteTypes {
   id:
     | "__root__"
     | "/"
+    | "/changes"
     | "/classes"
     | "/failure-codes"
     | "/hierarchy"
@@ -161,6 +173,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute;
+  ChangesRoute: typeof ChangesRoute;
   ClassesRoute: typeof ClassesRoute;
   FailureCodesRoute: typeof FailureCodesRoute;
   HierarchyRoute: typeof HierarchyRoute;
@@ -180,6 +193,13 @@ declare module "@tanstack/react-router" {
       path: "/";
       fullPath: "/";
       preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/changes": {
+      id: "/changes";
+      path: "/changes";
+      fullPath: "/changes";
+      preLoaderRoute: typeof ChangesRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/classes": {
@@ -257,6 +277,7 @@ declare module "@tanstack/react-router" {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ChangesRoute: ChangesRoute,
   ClassesRoute: ClassesRoute,
   FailureCodesRoute: FailureCodesRoute,
   HierarchyRoute: HierarchyRoute,
