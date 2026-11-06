@@ -1,8 +1,8 @@
 import * as React from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { MoveRightIcon, PencilIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { MoveRightIcon, PencilIcon, PlusIcon, QrCodeIcon, SearchIcon } from "lucide-react";
 
 import { errorMessage } from "@/lib/api";
 import {
@@ -35,6 +35,7 @@ import { AssetTree, type AssetLevel, type AssetNode } from "@/components/molca/a
 import { PageTitle } from "@/components/shell/page-header";
 import { ReasonField } from "@/components/md/ReasonField";
 import { StatusDot } from "@/components/md/parts";
+import { AssetLabelCard } from "@/components/md/LabelsPage";
 
 import type { HierarchyNode } from "@/lib/types";
 import { StatStrip } from "@/components/molca/stat-strip";
@@ -184,9 +185,16 @@ function AssetsRegistry({ selectedId }: { selectedId?: string }) {
         subtitle={t("md.assets.subtitle", { tenant: reg?.tree.tenant.name ?? "" })}
         crumbs={selected ? [t("nav.assets"), selected.assetTag] : [t("nav.assets")]}
         actions={
-          <Button size="sm" onClick={() => setForm({ mode: "new" })}>
-            <PlusIcon /> {t("md.assets.add")}
-          </Button>
+          <>
+            <Button size="sm" variant="outline" asChild>
+              <Link to="/assets/labels">
+                <QrCodeIcon /> {t("lbl.title")}
+              </Link>
+            </Button>
+            <Button size="sm" onClick={() => setForm({ mode: "new" })}>
+              <PlusIcon /> {t("md.assets.add")}
+            </Button>
+          </>
         }
       />
       <div className="flex flex-col gap-3">
@@ -365,6 +373,7 @@ function AssetDetail({
           </div>
         </CardContent>
       </Card>
+      <AssetLabelCard asset={asset} reg={reg} />
       <p className="text-[12px] text-muted-foreground">{t("md.assets.readers")}</p>
     </div>
   );

@@ -31,6 +31,7 @@ import { createHierarchyDeactivationHandler } from "../../module/mes/site-hierar
 import { createPeopleHandler } from "../../module/mes/people/people-handler.js";
 import { createCrewsHandler } from "../../module/mes/crews/crews-handler.js";
 import { mountMroCatalog } from "../../module/mes/catalog/mro-catalog.js";
+import { mountAssetLabels } from "../../module/mes/asset-labels/asset-labels.js";
 import { createHierarchyTreeHandler } from "../../module/mes/site-hierarchy/hierarchy-tree-handler.js";
 import { createAreasHandler } from "../../module/mes/areas/areas-handler.js";
 import { createWorkCentersHandler } from "../../module/mes/work-centers/work-centers-handler.js";
@@ -171,6 +172,7 @@ api.route(
 api.route("/people", createPeopleHandler({ peopleService: container.resolve("peopleService") }));
 api.route("/crews", createCrewsHandler({ crewsService: container.resolve("crewsService") }));
 mountMroCatalog(api, container);
+mountAssetLabels(api, container);
 api.route("/assets", createAssetsHandler({ assetsService: container.resolve("assetsService") }));
 
 api.route(

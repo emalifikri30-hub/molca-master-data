@@ -1,3 +1,4 @@
+import { useAssetLabels } from "@/lib/labels";
 import * as React from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
@@ -7,6 +8,7 @@ import {
   ChevronRightIcon,
   CpuIcon,
   MapPinOffIcon,
+  QrCodeIcon,
   ShapesIcon,
   UserXIcon,
   WalletIcon,
@@ -56,7 +58,15 @@ type Issue = {
   what: string;
   title: string;
   meta: string;
-  to: "/assets" | "/hierarchy" | "/classes" | "/people" | "/parts" | "/stores" | "/failure-codes";
+  to:
+    | "/assets"
+    | "/assets/labels"
+    | "/hierarchy"
+    | "/classes"
+    | "/people"
+    | "/parts"
+    | "/stores"
+    | "/failure-codes";
   assetId?: string;
   tone: string;
 };
@@ -69,6 +79,7 @@ function Home() {
   const { data: items } = useItems();
   const { data: storesBins } = useStoresBins();
   const { data: codes } = useFailureCodes();
+  const { data: labels } = useAssetLabels();
   const [page, setPage] = React.useState(0);
 
   const located = React.useMemo(() => (reg ? locatedIds(reg) : new Set<string>()), [reg]);
@@ -88,6 +99,14 @@ function Home() {
   const unusedTypes = (reg?.types ?? []).filter((x) => !assets.some((a) => a.assetTypeId === x.id));
   const noRate = (people ?? []).filter((p) => !p.hourlyRate || Number(p.hourlyRate) === 0);
   const noLogin = (people ?? []).filter((p) => !p.username);
+  // machines without a QR label on them: technicians cannot scan them to open the asset or log arrival
+  const machines = (reg?.assets ?? []).filter(
+    (a) => a.componentLevel === "equipment_unit" && a.lifecycleStatus !== "decommissioned",
+  );
+  const labelled = new Set(
+    (labels ?? []).filter((l) => l.status === "installed").map((l) => l.assetId),
+  );
+  const noLabel = machines.filter((a) => !labelled.has(a.id));
   const noPrice = (items ?? []).filter((i) => i.unitCost == null || Number(i.unitCost) === 0);
   const untagged = (storesBins?.bins ?? []).filter((b) => !b.tag);
   const codeClasses = [...new Set((codes ?? []).map((c) => c.iso14224Class))];
@@ -159,6 +178,13 @@ function Home() {
       to: "/stores",
     },
     {
+      icon: QrCodeIcon,
+      label: t("md.home.t.noLabel"),
+      n: noLabel.length,
+      sub: t("md.home.t.noLabelSub", { n: machines.length }),
+      to: "/assets/labels",
+    },
+    {
       icon: ShapesIcon,
       label: t("md.home.t.thinCodes"),
       n: thinClasses.length,
@@ -218,6 +244,14 @@ function Home() {
       meta: i.code,
       to: "/parts" as const,
       tone: "var(--sys-orange)",
+    })),
+    ...noLabel.map((a) => ({
+      key: `lbl${a.id}`,
+      what: t("md.home.q.noLabel"),
+      title: a.assetName || a.assetTag,
+      meta: a.assetTag,
+      to: "/assets/labels" as const,
+      tone: "var(--muted-foreground)",
     })),
     ...thinClasses.map((c) => ({
       key: `fc${c}`,

@@ -19,6 +19,7 @@ import { Route as PeopleRouteImport } from "./routes/people";
 import { Route as StoresRouteImport } from "./routes/stores";
 import { Route as AssetsIndexRouteImport } from "./routes/assets.index";
 import { Route as AssetsAssetIdRouteImport } from "./routes/assets.$assetId";
+import { Route as AssetsLabelsRouteImport } from "./routes/assets.labels";
 
 const IndexRoute = IndexRouteImport.update({
   id: "/",
@@ -70,6 +71,11 @@ const AssetsAssetIdRoute = AssetsAssetIdRouteImport.update({
   path: "/assets/$assetId",
   getParentRoute: () => rootRouteImport,
 } as any);
+const AssetsLabelsRoute = AssetsLabelsRouteImport.update({
+  id: "/assets/labels",
+  path: "/assets/labels",
+  getParentRoute: () => rootRouteImport,
+} as any);
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   "/people": typeof PeopleRoute;
   "/stores": typeof StoresRoute;
   "/assets/$assetId": typeof AssetsAssetIdRoute;
+  "/assets/labels": typeof AssetsLabelsRoute;
   "/assets/": typeof AssetsIndexRoute;
 }
 export interface FileRoutesByTo {
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   "/people": typeof PeopleRoute;
   "/stores": typeof StoresRoute;
   "/assets/$assetId": typeof AssetsAssetIdRoute;
+  "/assets/labels": typeof AssetsLabelsRoute;
   "/assets": typeof AssetsIndexRoute;
 }
 export interface FileRoutesById {
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   "/people": typeof PeopleRoute;
   "/stores": typeof StoresRoute;
   "/assets/$assetId": typeof AssetsAssetIdRoute;
+  "/assets/labels": typeof AssetsLabelsRoute;
   "/assets/": typeof AssetsIndexRoute;
 }
 export interface FileRouteTypes {
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | "/people"
     | "/stores"
     | "/assets/$assetId"
+    | "/assets/labels"
     | "/assets/";
   fileRoutesByTo: FileRoutesByTo;
   to:
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | "/people"
     | "/stores"
     | "/assets/$assetId"
+    | "/assets/labels"
     | "/assets";
   id:
     | "__root__"
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | "/people"
     | "/stores"
     | "/assets/$assetId"
+    | "/assets/labels"
     | "/assets/";
   fileRoutesById: FileRoutesById;
 }
@@ -157,6 +169,7 @@ export interface RootRouteChildren {
   PeopleRoute: typeof PeopleRoute;
   StoresRoute: typeof StoresRoute;
   AssetsAssetIdRoute: typeof AssetsAssetIdRoute;
+  AssetsLabelsRoute: typeof AssetsLabelsRoute;
   AssetsIndexRoute: typeof AssetsIndexRoute;
 }
 
@@ -232,6 +245,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AssetsAssetIdRouteImport;
       parentRoute: typeof rootRouteImport;
     };
+    "/assets/labels": {
+      id: "/assets/labels";
+      path: "/assets/labels";
+      fullPath: "/assets/labels";
+      preLoaderRoute: typeof AssetsLabelsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
   }
 }
 
@@ -245,6 +265,7 @@ const rootRouteChildren: RootRouteChildren = {
   PeopleRoute: PeopleRoute,
   StoresRoute: StoresRoute,
   AssetsAssetIdRoute: AssetsAssetIdRoute,
+  AssetsLabelsRoute: AssetsLabelsRoute,
   AssetsIndexRoute: AssetsIndexRoute,
 };
 export const routeTree = rootRouteImport

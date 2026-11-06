@@ -28,6 +28,7 @@ function Strip({
 
 type To =
   | "/assets"
+  | "/assets/labels"
   | "/hierarchy"
   | "/classes"
   | "/people"
@@ -40,7 +41,7 @@ type Tile = { icon: LucideIcon; label: string; n: number; sub: string; to: To; h
 function Tiles({ tiles }: { tiles: Tile[] }) {
   return (
     <StatStrip
-      cols="sm:grid-cols-3 xl:grid-cols-9"
+      cols="sm:grid-cols-3 xl:grid-cols-5"
       cells={tiles.map((x) => ({
         label: x.label,
         value: x.n,
