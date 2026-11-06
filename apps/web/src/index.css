@@ -1,0 +1,44 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+/* Molca theme tokens — installed from the @molca/molca-theme registry item (Molca Design System). Colors,
+   status and loss colors, radius and chart tokens all come from there; components never hardcode a palette. */
+@import "./styles/molca-theme.css";
+/* Geist + Geist Mono, self-hosted (no CDN: on-premise plants run without internet). */
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+/* a `dark` class on <html> flips the theme (applied before first paint by index.html) */
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-geist-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-geist-mono: "Geist Mono Variable", ui-monospace, monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html,
+  body,
+  #root {
+    min-height: 100svh;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* tabular figures: live numbers never jitter (DS typography) */
+    font-feature-settings: "tnum" 1;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* Logo: alpha-mask image recolored with currentColor (as in the Design System) */
+.molca-logo {
+  display: inline-block;
+  background: currentColor;
+  -webkit-mask: var(--logo) center / contain no-repeat;
+  mask: var(--logo) center / contain no-repeat;
+}

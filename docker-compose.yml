@@ -1,0 +1,122 @@
+# Local end-to-end run of the app images on one network.
+#   docker compose up --build      # web http://localhost:8080
+#
+# Compose reads each app's .env (it strips quotes correctly, unlike `docker run --env-file`).
+# In-network service names override the localhost URLs from those .env files via `environment:`.
+#
+# Notes:
+# - `api` is the modular-monolith service: it serves both the post and comment
+#   domains (/api/v1/posts and /api/v1/comments) from one process on :3002.
+#   post fetches a post's comments in-process via the CommentClientContract.
+# - api uses DATABASE_URL from apps/api/.env. Point it at a reachable DB and run
+#   migrations separately: `pnpm --filter api db:push`.
+#   (An optional local `postgres` service is included under the `with-db` profile — enable
+#   with `--profile with-db` and set DATABASE_URL to postgres://postgres:postgres@postgres:5432/app.)
+# - Full OIDC login also needs the IdP's redirect URIs to match the web origin (http://localhost:8080).
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      ssh: [default]
+    # `.env` is gitignored and may not exist yet (copy it from your own template);
+    # required: false lets compose run without it, falling back to the values below.
+    env_file:
+      - path: apps/api/.env
+        required: false
+    environment:
+      PORT: 3002
+      OTEL_SERVICE_NAME: api
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_RESOURCE_ATTRIBUTES: service.namespace=molca,deployment.environment=docker
+      OTEL_METRIC_EXPORT_INTERVAL_MILLIS: 15000
+    depends_on:
+      - otel-collector
+    ports:
+      - "3002:3002"
+
+  bff:
+    build:
+      context: .
+      dockerfile: apps/bff/Dockerfile
+      ssh: [default]
+    env_file:
+      - path: apps/bff/.env
+        required: false
+    environment:
+      PORT: 3001
+      # Reach the core domain API (post + comment monolith) by its service name.
+      CORE_API_BASE_URL: http://api:3002
+      # After login, send the browser back to the web origin below.
+      CLIENT_BASE_REDIRECT_URI: http://localhost:8080/
+      OTEL_SERVICE_NAME: bff
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_RESOURCE_ATTRIBUTES: service.namespace=molca,deployment.environment=docker
+      OTEL_METRIC_EXPORT_INTERVAL_MILLIS: 15000
+    depends_on:
+      - api
+      - otel-collector
+    ports:
+      - "3001:3001"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      ssh: [default]
+    environment:
+      BFF_UPSTREAM: http://bff:3001
+    depends_on:
+      - bff
+      - api
+    ports:
+      - "8080:80"
+
+  # ---- Observability stack ----------------------------------------------
+  # Collector receives OTLP from bff + post + comment, sends traces to Jaeger and
+  # exposes metrics for Prometheus.  Traces UI: http://localhost:16686
+  # Metrics UI: http://localhost:9090
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+      - "8889:8889" # Prometheus scrape endpoint
+    depends_on:
+      - jaeger
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686" # Jaeger UI
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090" # Prometheus UI
+
+  # Optional local database. Enable with: docker compose --profile with-db up --build
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["with-db"]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: app
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

@@ -1,0 +1,6 @@
+{
+  "files": [],
+  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }],
+  // read by the shadcn CLI (it does not follow references) so @molca items land in src/
+  "compilerOptions": { "paths": { "@/*": ["./src/*"] } }
+}

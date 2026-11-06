@@ -1,0 +1,1 @@
+ALTER TABLE "master_data"."asset_tags" ADD COLUMN "count_side" text DEFAULT '' NOT NULL;

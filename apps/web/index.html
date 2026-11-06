@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Master Data · MolcaDx MAM</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      // Applied before first paint so reloading in dark mode doesn't flash light. Light by default, like the
+      // Molca Design System and Product Foundation (next-themes defaultTheme="light"); dark only when chosen,
+      // the OS setting only when "system" is chosen.
+      (function () {
+        var stored = null;
+        try {
+          stored = localStorage.getItem("theme");
+        } catch (e) {}
+        var dark =
+          stored === "dark" ||
+          (stored === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+        if (dark) document.documentElement.classList.add("dark");
+      })();
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,40 @@
+{
+  "data": {
+    "workOrders": [
+      {
+        "id": "wo-1",
+        "woNumber": "WO-2026-00184",
+        "productId": "prod-3",
+        "siteId": "site-1",
+        "status": "in_progress",
+        "priority": 2
+      }
+    ],
+    "jobOrders": [
+      {
+        "id": "jo-1",
+        "workOrderId": "wo-1",
+        "operationId": "op-step-10",
+        "workUnitId": "wu-1",
+        "plannedQty": 500,
+        "status": "in_progress"
+      }
+    ],
+    "executions": [
+      {
+        "id": "ex-1",
+        "jobOrderId": "jo-1",
+        "workUnitId": "wu-1",
+        "shiftInstanceId": "shift-1",
+        "goodQty": 480,
+        "scrapQty": 12,
+        "reworkQty": null,
+        "actualStart": "2026-10-12T01:00:00.000Z",
+        "actualEnd": null,
+        "status": "in_progress"
+      }
+    ]
+  },
+  "meta": null,
+  "error": null
+}

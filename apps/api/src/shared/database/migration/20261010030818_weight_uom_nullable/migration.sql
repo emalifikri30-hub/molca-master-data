@@ -1,0 +1,1 @@
+ALTER TABLE "master_data"."product_detail" ALTER COLUMN "weight_uom_id" DROP NOT NULL;

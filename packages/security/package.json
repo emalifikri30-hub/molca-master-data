@@ -1,0 +1,40 @@
+{
+  "name": "@molca/security",
+  "version": "0.0.0",
+  "description": "Tenant (Keycloak organization) middleware for molca services; auth comes from @molca/mes.",
+  "license": "MIT",
+  "author": "molca",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "dev": "vp pack --watch",
+    "test": "vp test",
+    "check": "vp check",
+    "prepublishOnly": "vp run build"
+  },
+  "dependencies": {
+    "hono": "^4.12.26",
+    "jose": "catalog:"
+  },
+  "devDependencies": {
+    "@molca/mes": "catalog:",
+    "@types/node": "^25.6.2",
+    "@typescript/native-preview": "7.0.0-dev.20260509.2",
+    "bumpp": "^11.1.0",
+    "typescript": "^6.0.3",
+    "vite-plus": "catalog:"
+  },
+  "inlinedDependencies": {
+    "@molca/mes": "0.1.2"
+  }
+}
