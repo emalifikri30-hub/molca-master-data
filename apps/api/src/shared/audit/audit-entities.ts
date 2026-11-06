@@ -63,6 +63,18 @@ const AUDITED_TABLES: Record<string, AuditedTable> = {
     code: (r) => str(r.label),
     versionKey: (r) => str(r.lineageId),
   },
+  // PPL (MolcaDx MAM)
+  person: { entityType: "PERSON", code: (r) => str(r.code) },
+  crew: { entityType: "CREW", code: (r) => str(r.code) },
+  // MRO catalogue (MolcaDx MAM)
+  item: { entityType: "ITEM", code: (r) => str(r.code) },
+  item_cost: { entityType: "ITEM_COST", code: (r) => str(r.itemId) },
+  store: { entityType: "STORE", code: (r) => str(r.code) },
+  bin: { entityType: "BIN", code: (r) => str(r.code) },
+  failure_code: {
+    entityType: "FAILURE_CODE",
+    code: (r) => `${str(r.iso14224Class)}/${str(r.kind)}/${str(r.code)}`,
+  },
   // AST
   asset_class: { entityType: "ASSET_CLASS" },
   asset_type: { entityType: "ASSET_TYPE" },

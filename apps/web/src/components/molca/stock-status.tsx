@@ -60,6 +60,36 @@ export const STOCK_STATUS_META: Record<
   },
 };
 
+/** Words of the stock views, English by default; `localizeStock` swaps them (labels, headers, coverage). */
+const STOCK_TEXT_EN = {
+  material: "Material",
+  required: "Required",
+  available: "Available",
+  onOrder: "On order",
+  coverage: "Coverage",
+  statusCol: "Status",
+  covered: (pct: number) => `${pct}% covered`,
+  summary: "Status summary",
+  table: "Material coverage",
+};
+const STOCK_TEXT = { ...STOCK_TEXT_EN };
+const STOCK_META_EN = Object.fromEntries(
+  Object.entries(STOCK_STATUS_META).map(([k, v]) => [
+    k,
+    { label: v.label, description: v.description },
+  ]),
+);
+export type StockLocale = Partial<typeof STOCK_TEXT_EN> & {
+  status?: Partial<Record<StockStatus, { label: string; description?: string }>>;
+};
+/** Sets the language of the stock views; call again on a language change. `undefined` restores English. */
+export function localizeStock(locale?: StockLocale) {
+  const { status, ...text } = locale ?? {};
+  Object.assign(STOCK_TEXT, STOCK_TEXT_EN, text);
+  for (const [k, v] of Object.entries(STOCK_STATUS_META))
+    Object.assign(v, STOCK_META_EN[k], status?.[k as StockStatus]);
+}
+
 /** Text color per status that keeps 4.5:1 on the soft fill in all four modes. */
 const TEXT: Record<StockStatus, string> = {
   out: "text-danger",
@@ -369,7 +399,7 @@ export function MaterialCoverageList({
   return (
     <div className={cn("@container w-full", className)}>
       {!hideSummary && (
-        <div className="mb-3 flex flex-wrap items-center gap-1.5" aria-label="Status summary">
+        <div className="mb-3 flex flex-wrap items-center gap-1.5" aria-label={STOCK_TEXT.summary}>
           {order
             .filter((s) => counts[s])
             .map((s) => (
@@ -383,11 +413,7 @@ export function MaterialCoverageList({
             ))}
         </div>
       )}
-      <div
-        role="table"
-        aria-label="Material coverage"
-        className="overflow-hidden rounded-xl border"
-      >
+      <div role="table" aria-label={STOCK_TEXT.table} className="overflow-hidden rounded-xl border">
         <div
           role="row"
           className={cn(
@@ -395,18 +421,18 @@ export function MaterialCoverageList({
             cols,
           )}
         >
-          <span role="columnheader">Material</span>
+          <span role="columnheader">{STOCK_TEXT.material}</span>
           <span role="columnheader" className="text-right">
-            Required
+            {STOCK_TEXT.required}
           </span>
           <span role="columnheader" className="text-right">
-            Available
+            {STOCK_TEXT.available}
           </span>
           <span role="columnheader" className="text-right">
-            On order
+            {STOCK_TEXT.onOrder}
           </span>
-          <span role="columnheader">Coverage</span>
-          <span role="columnheader">Status</span>
+          <span role="columnheader">{STOCK_TEXT.coverage}</span>
+          <span role="columnheader">{STOCK_TEXT.statusCol}</span>
         </div>
         {rows.map(({ m, st }) => {
           const bad = st === "short" || st === "out";
@@ -436,7 +462,7 @@ export function MaterialCoverageList({
               <div className="grid grid-cols-3 gap-2 text-[12px] tabular-nums @[40rem]:contents">
                 <div role="cell" className="@[40rem]:text-right">
                   <span className="block text-[11px] text-muted-foreground @[40rem]:hidden">
-                    Required
+                    {STOCK_TEXT.required}
                   </span>
                   {num(m.required)} <span className="text-muted-foreground">{m.unit}</span>
                 </div>
@@ -445,7 +471,7 @@ export function MaterialCoverageList({
                   className={cn("@[40rem]:text-right", bad && "font-semibold text-danger")}
                 >
                   <span className="block text-[11px] font-normal text-muted-foreground @[40rem]:hidden">
-                    Available
+                    {STOCK_TEXT.available}
                   </span>
                   {num(m.available)}{" "}
                   <span
@@ -461,7 +487,7 @@ export function MaterialCoverageList({
                 </div>
                 <div role="cell" className="@[40rem]:text-right">
                   <span className="block text-[11px] text-muted-foreground @[40rem]:hidden">
-                    On order
+                    {STOCK_TEXT.onOrder}
                   </span>
                   {m.onOrder ? (
                     <>
@@ -498,7 +524,9 @@ export function MaterialCoverageList({
                     </span>
                   ) : (
                     <span>
-                      {m.required > 0 ? Math.round((m.available / m.required) * 100) : 100}% covered
+                      {STOCK_TEXT.covered(
+                        m.required > 0 ? Math.round((m.available / m.required) * 100) : 100,
+                      )}
                     </span>
                   )}
                   {m.runsOutAt && <> · runs out {m.runsOutAt}</>}

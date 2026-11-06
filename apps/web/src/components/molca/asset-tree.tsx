@@ -3,10 +3,12 @@
 import * as React from "react";
 import {
   Bell,
+  Bolt,
   Boxes,
   Building2,
   ChevronRight,
-  Cpu,
+  Cog,
+  Component,
   Factory,
   LayoutGrid,
   Workflow,
@@ -20,7 +22,17 @@ import { cn } from "@/lib/utils";
 
 /** ISA-95 levels: Enterprise → Site → Area → Line (work centre) → Work cell / machine (work unit). */
 /** ISA-95 levels; "equipment" is the machine itself, below its work cell / station. */
-export type AssetLevel = "enterprise" | "site" | "area" | "line" | "cell" | "equipment";
+/** ISA-95 down to the work cell, then ISO 14224 below it: equipment unit › subunit › maintainable item › part. */
+export type AssetLevel =
+  | "enterprise"
+  | "site"
+  | "area"
+  | "line"
+  | "cell"
+  | "equipment"
+  | "subunit"
+  | "item"
+  | "part";
 /** Universal machine state codes (same as StateTimeline / StatusPill). */
 export type AssetStatus = "run" | "idle" | "down" | "setup" | "off";
 
@@ -58,7 +70,10 @@ export const ASSET_LEVEL: Record<
   area: { label: "Area", icon: LayoutGrid },
   line: { label: "Line", icon: Workflow },
   cell: { label: "Work cell", icon: Boxes },
-  equipment: { label: "Equipment", icon: Cpu },
+  equipment: { label: "Equipment unit", icon: Cog },
+  subunit: { label: "Subunit", icon: Component },
+  item: { label: "Maintainable item", icon: Wrench },
+  part: { label: "Part", icon: Bolt },
 };
 
 type Rollup = { status?: AssetStatus; alarms: number; openWos: number };

@@ -33,8 +33,11 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Skeleton } from "@/components/ui/skeleton";
 import { AssetTree, type AssetLevel, type AssetNode } from "@/components/molca/asset-tree";
 import { PageTitle } from "@/components/shell/page-header";
+import { ReasonField } from "@/components/md/ReasonField";
+import { StatusDot } from "@/components/md/parts";
 
 import type { HierarchyNode } from "@/lib/types";
+import { StatStrip } from "@/components/molca/stat-strip";
 
 // Assets (Master Data): the site hierarchy with the assets placed on each work unit on the left, the selected
 // asset on the right — register, edit and move in place. Assets not placed anywhere sit under their own node so
@@ -48,6 +51,12 @@ const LEVEL: Record<string, AssetLevel> = {
   "work-unit": "cell",
 };
 const UNPLACED = "__unplaced";
+const ISO_LEVEL: Record<string, AssetLevel> = {
+  equipment_unit: "equipment",
+  subunit: "subunit",
+  maintainable_item: "item",
+  part: "part",
+};
 
 function toTree(n: HierarchyNode, subs: Map<string, Asset[]>): AssetNode[] {
   if (n.level === "tenant" || n.level === "enterprise")
@@ -57,18 +66,19 @@ function toTree(n: HierarchyNode, subs: Map<string, Asset[]>): AssetNode[] {
     name: string,
     tag: string,
     status: Asset["lifecycleStatus"],
+    level: string,
   ): AssetNode => ({
     id,
     name,
-    level: "equipment",
+    level: ISO_LEVEL[level] ?? "equipment",
     status: status === "operational" ? "run" : status === "under_maintenance" ? "down" : "off",
     meta: tag,
     // sub-assets (subunit, maintainable item, part) sit under their parent, as ISO 14224 levels them
     children: (subs.get(id) ?? []).map((c) =>
-      node(c.id, c.assetName || c.assetTag, c.assetTag, c.lifecycleStatus),
+      node(c.id, c.assetName || c.assetTag, c.assetTag, c.lifecycleStatus, c.componentLevel),
     ),
   });
-  const assets = n.assets.map((a) => node(a.id, a.name || a.tag, a.tag, a.status));
+  const assets = n.assets.map((a) => node(a.id, a.name || a.tag, a.tag, a.status, a.level));
   return [
     {
       id: n.id,
@@ -130,7 +140,7 @@ function AssetsRegistry({ selectedId }: { selectedId?: string }) {
     const node = (a: Asset): AssetNode => ({
       id: a.id,
       name: a.assetName || a.assetTag,
-      level: "equipment",
+      level: ISO_LEVEL[a.componentLevel] ?? "equipment",
       status: "off",
       meta: a.assetTag,
       children: (byParent.get(a.id) ?? []).map(node),
@@ -180,19 +190,10 @@ function AssetsRegistry({ selectedId }: { selectedId?: string }) {
         }
       />
       <div className="flex flex-col gap-3">
-        <div className="grid grid-cols-2 overflow-hidden rounded-xl border bg-card sm:grid-cols-4 xl:grid-cols-8">
-          {strip.map(([k, v, c]) => (
-            <div key={k} className="-mr-px -mb-px border-r border-b px-3.5 py-2.5">
-              <div className="truncate text-[12px] text-muted-foreground">{k}</div>
-              <div
-                className="mt-0.5 text-[20px] leading-tight font-semibold tracking-tight tabular-nums"
-                style={{ color: v ? c : "var(--muted-foreground)" }}
-              >
-                {v}
-              </div>
-            </div>
-          ))}
-        </div>
+        <StatStrip
+          cols="sm:grid-cols-4 xl:grid-cols-8"
+          cells={strip.map(([label, value, tone]) => ({ label, value, tone }))}
+        />
         <div className="grid gap-3 @3xl/shell:grid-cols-[minmax(20rem,24rem)_minmax(0,1fr)]">
           <Card className="gap-3 self-start px-3 py-3 @3xl/shell:sticky @3xl/shell:top-16 @3xl/shell:max-h-[calc(100dvh-5rem)]">
             <InputGroup className="h-8">
@@ -311,13 +312,25 @@ function AssetDetail({
           </div>
         </CardHeader>
         <CardContent>
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px] sm:grid-cols-3 xl:grid-cols-4">
+          {/* the same bordered fact grid as Spare parts: one cell per fact, empty facts left out */}
+          <dl className="grid grid-cols-2 overflow-hidden rounded-xl border sm:grid-cols-3 xl:grid-cols-4">
             {facts.map(([k, v]) => (
-              <div key={k} className="min-w-0">
+              <div key={k} className="-mr-px -mb-px min-w-0 border-r border-b px-3.5 py-2.5">
                 <dt className="truncate text-[12px] capitalize text-muted-foreground">{k}</dt>
-                <dd className="truncate">{v}</dd>
+                <dd className="mt-0.5 flex items-center gap-1.5 truncate text-[14px] font-medium">
+                  {k === t("md.f.status") ? <StatusDot status={asset.lifecycleStatus} /> : null}
+                  {v}
+                </dd>
               </div>
             ))}
+            <div className="-mr-px -mb-px min-w-0 border-r border-b px-3.5 py-2.5">
+              <dt className="truncate text-[12px] text-muted-foreground">
+                {t("md.f.children", { n: children.length })}
+              </dt>
+              <dd className="mt-0.5 truncate text-[14px] font-medium tabular-nums">
+                {children.length}
+              </dd>
+            </div>
           </dl>
         </CardContent>
       </Card>
@@ -373,14 +386,21 @@ const roleFor = (reg: Registry, unit: string) =>
     ? "secondary"
     : "primary";
 
+/** Register or edit an asset. `defaults` pre-fill a new one: the work unit it goes on, or the parent it sits under. */
 function AssetDialog({
   reg,
   asset,
+  defaults,
   onClose,
   onCreated,
 }: {
   reg: Registry;
   asset?: Asset;
+  defaults?: {
+    workUnitId?: string;
+    parentAssetId?: string;
+    componentLevel?: Asset["componentLevel"];
+  };
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
@@ -392,24 +412,25 @@ function AssetDialog({
     assetName: asset?.assetName ?? "",
     assetTypeId: asset?.assetTypeId ?? "",
     serialNumber: asset?.serialNumber ?? "",
-    parentAssetId: asset?.parentAssetId ?? "",
-    componentLevel: asset?.componentLevel ?? "equipment_unit",
+    parentAssetId: asset?.parentAssetId ?? defaults?.parentAssetId ?? "",
+    componentLevel: asset?.componentLevel ?? defaults?.componentLevel ?? "equipment_unit",
     lifecycleStatus: asset?.lifecycleStatus ?? "operational",
     commissioningDate: asset?.commissioningDate ?? "",
     attributes: asset?.attributes ?? {},
-    workUnitId: "",
+    workUnitId: defaults?.workUnitId ?? "",
   });
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF({ ...f, [k]: v });
+  const [reason, setReason] = React.useState("");
   const tagTaken =
     !asset && reg.assets.some((a) => a.assetTag.toLowerCase() === f.assetTag.trim().toLowerCase());
-  const ready = f.assetTag.trim() && !tagTaken;
+  const ready = f.assetTag.trim() && !tagTaken && (!asset || reason.trim());
   const busy = create.isPending || update.isPending;
   const save = () => {
     const { workUnitId, ...input } = f;
     const done = { onError: (e: unknown) => toast.error(errorMessage(e)) };
     if (asset)
       update.mutate(
-        { id: asset.id, ...input },
+        { id: asset.id, ...input, reason: reason.trim() },
         {
           ...done,
           onSuccess: () => (toast.success(t("md.assets.saved", { tag: f.assetTag })), onClose()),
@@ -419,8 +440,9 @@ function AssetDialog({
       create.mutate(
         {
           ...input,
-          workUnitId: workUnitId || undefined,
-          role: workUnitId ? roleFor(reg, workUnitId) : undefined,
+          // a sub-asset follows its parent's placement; only a top asset goes on a work unit
+          workUnitId: (!input.parentAssetId && workUnitId) || undefined,
+          role: workUnitId && !input.parentAssetId ? roleFor(reg, workUnitId) : undefined,
         },
         {
           ...done,
@@ -519,7 +541,7 @@ function AssetDialog({
               onChange={(e) => set("commissioningDate", e.target.value)}
             />
           </Field>
-          {!asset ? (
+          {!asset && !f.parentAssetId ? (
             <Field label={t("md.f.workUnit")} hint={t("md.assets.workUnitHint")} wide>
               <NativeSelect
                 value={f.workUnitId}
@@ -536,6 +558,7 @@ function AssetDialog({
             </Field>
           ) : null}
         </div>
+        {asset ? <ReasonField value={reason} onChange={setReason} /> : null}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             {t("common.cancel")}
@@ -554,6 +577,7 @@ function MoveDialog({ reg, asset, onClose }: { reg: Registry; asset: Asset; onCl
   const move = useMoveAsset();
   const current = reg.placements.find((p) => p.assetId === asset.id)?.workUnitId ?? "";
   const [unit, setUnit] = React.useState("");
+  const [reason, setReason] = React.useState("");
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
@@ -574,15 +598,21 @@ function MoveDialog({ reg, asset, onClose }: { reg: Registry; asset: Asset; onCl
               ))}
           </NativeSelect>
         </Field>
+        <ReasonField value={reason} onChange={setReason} />
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             {t("common.cancel")}
           </Button>
           <Button
-            disabled={!unit || move.isPending}
+            disabled={!unit || !reason.trim() || move.isPending}
             onClick={() =>
               move.mutate(
-                { assetId: asset.id, workUnitId: unit, role: roleFor(reg, unit) },
+                {
+                  assetId: asset.id,
+                  workUnitId: unit,
+                  role: roleFor(reg, unit),
+                  reason: reason.trim(),
+                },
                 {
                   onSuccess: () => (
                     toast.success(t("md.assets.moved", { tag: asset.assetTag })),
@@ -621,4 +651,4 @@ function Field({
   );
 }
 
-export { AssetsRegistry };
+export { AssetDialog, AssetsRegistry };

@@ -50,6 +50,8 @@ import type { HierarchyTreeService } from "../../module/mes/site-hierarchy/hiera
 import { registerWorkUnits } from "../../module/mes/work-units/work-units-module.js";
 import { registerEquipmentFlows } from "../../module/mes/equipment-flows/equipment-flows-module.js";
 import { registerAssetClasses } from "../../module/mes/asset-classes/asset-classes-module.js";
+import { registerPeople } from "../../module/mes/people/people-module.js";
+import { registerCrews } from "../../module/mes/crews/crews-module.js";
 import { registerAssetTypes } from "../../module/mes/asset-types/asset-types-module.js";
 import { registerAssets } from "../../module/mes/assets/assets-module.js";
 import { registerAssetPlacements } from "../../module/mes/asset-placements/asset-placements-module.js";
@@ -180,6 +182,8 @@ function createContainer(config: AppConfig): AwilixContainer<Cradle> {
   registerWorkUnits(container);
   registerEquipmentFlows(container);
   registerAssetClasses(container);
+  registerPeople(container);
+  registerCrews(container);
   registerAssetTypes(container);
   registerAssets(container);
   registerAssetPlacements(container);

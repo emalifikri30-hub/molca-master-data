@@ -10,14 +10,29 @@
 
 import { Route as rootRouteImport } from "./routes/__root";
 import { Route as IndexRouteImport } from "./routes/index";
+import { Route as ClassesRouteImport } from "./routes/classes";
+import { Route as FailureCodesRouteImport } from "./routes/failure-codes";
 import { Route as HierarchyRouteImport } from "./routes/hierarchy";
 import { Route as LoginRouteImport } from "./routes/login";
+import { Route as PartsRouteImport } from "./routes/parts";
+import { Route as PeopleRouteImport } from "./routes/people";
+import { Route as StoresRouteImport } from "./routes/stores";
 import { Route as AssetsIndexRouteImport } from "./routes/assets.index";
 import { Route as AssetsAssetIdRouteImport } from "./routes/assets.$assetId";
 
 const IndexRoute = IndexRouteImport.update({
   id: "/",
   path: "/",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const ClassesRoute = ClassesRouteImport.update({
+  id: "/classes",
+  path: "/classes",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const FailureCodesRoute = FailureCodesRouteImport.update({
+  id: "/failure-codes",
+  path: "/failure-codes",
   getParentRoute: () => rootRouteImport,
 } as any);
 const HierarchyRoute = HierarchyRouteImport.update({
@@ -28,6 +43,21 @@ const HierarchyRoute = HierarchyRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: "/login",
   path: "/login",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const PartsRoute = PartsRouteImport.update({
+  id: "/parts",
+  path: "/parts",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const PeopleRoute = PeopleRouteImport.update({
+  id: "/people",
+  path: "/people",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const StoresRoute = StoresRouteImport.update({
+  id: "/stores",
+  path: "/stores",
   getParentRoute: () => rootRouteImport,
 } as any);
 const AssetsIndexRoute = AssetsIndexRouteImport.update({
@@ -43,44 +73,89 @@ const AssetsAssetIdRoute = AssetsAssetIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
+  "/classes": typeof ClassesRoute;
+  "/failure-codes": typeof FailureCodesRoute;
   "/hierarchy": typeof HierarchyRoute;
   "/login": typeof LoginRoute;
+  "/parts": typeof PartsRoute;
+  "/people": typeof PeopleRoute;
+  "/stores": typeof StoresRoute;
   "/assets/$assetId": typeof AssetsAssetIdRoute;
   "/assets/": typeof AssetsIndexRoute;
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
+  "/classes": typeof ClassesRoute;
+  "/failure-codes": typeof FailureCodesRoute;
   "/hierarchy": typeof HierarchyRoute;
   "/login": typeof LoginRoute;
+  "/parts": typeof PartsRoute;
+  "/people": typeof PeopleRoute;
+  "/stores": typeof StoresRoute;
   "/assets/$assetId": typeof AssetsAssetIdRoute;
   "/assets": typeof AssetsIndexRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   "/": typeof IndexRoute;
+  "/classes": typeof ClassesRoute;
+  "/failure-codes": typeof FailureCodesRoute;
   "/hierarchy": typeof HierarchyRoute;
   "/login": typeof LoginRoute;
+  "/parts": typeof PartsRoute;
+  "/people": typeof PeopleRoute;
+  "/stores": typeof StoresRoute;
   "/assets/$assetId": typeof AssetsAssetIdRoute;
   "/assets/": typeof AssetsIndexRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
-  fullPaths: "/" | "/hierarchy" | "/login" | "/assets/$assetId" | "/assets/";
+  fullPaths:
+    | "/"
+    | "/classes"
+    | "/failure-codes"
+    | "/hierarchy"
+    | "/login"
+    | "/parts"
+    | "/people"
+    | "/stores"
+    | "/assets/$assetId"
+    | "/assets/";
   fileRoutesByTo: FileRoutesByTo;
-  to: "/" | "/hierarchy" | "/login" | "/assets/$assetId" | "/assets";
+  to:
+    | "/"
+    | "/classes"
+    | "/failure-codes"
+    | "/hierarchy"
+    | "/login"
+    | "/parts"
+    | "/people"
+    | "/stores"
+    | "/assets/$assetId"
+    | "/assets";
   id:
     | "__root__"
     | "/"
+    | "/classes"
+    | "/failure-codes"
     | "/hierarchy"
     | "/login"
+    | "/parts"
+    | "/people"
+    | "/stores"
     | "/assets/$assetId"
     | "/assets/";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute;
+  ClassesRoute: typeof ClassesRoute;
+  FailureCodesRoute: typeof FailureCodesRoute;
   HierarchyRoute: typeof HierarchyRoute;
   LoginRoute: typeof LoginRoute;
+  PartsRoute: typeof PartsRoute;
+  PeopleRoute: typeof PeopleRoute;
+  StoresRoute: typeof StoresRoute;
   AssetsAssetIdRoute: typeof AssetsAssetIdRoute;
   AssetsIndexRoute: typeof AssetsIndexRoute;
 }
@@ -92,6 +167,20 @@ declare module "@tanstack/react-router" {
       path: "/";
       fullPath: "/";
       preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/classes": {
+      id: "/classes";
+      path: "/classes";
+      fullPath: "/classes";
+      preLoaderRoute: typeof ClassesRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/failure-codes": {
+      id: "/failure-codes";
+      path: "/failure-codes";
+      fullPath: "/failure-codes";
+      preLoaderRoute: typeof FailureCodesRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/hierarchy": {
@@ -106,6 +195,27 @@ declare module "@tanstack/react-router" {
       path: "/login";
       fullPath: "/login";
       preLoaderRoute: typeof LoginRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/parts": {
+      id: "/parts";
+      path: "/parts";
+      fullPath: "/parts";
+      preLoaderRoute: typeof PartsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/people": {
+      id: "/people";
+      path: "/people";
+      fullPath: "/people";
+      preLoaderRoute: typeof PeopleRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/stores": {
+      id: "/stores";
+      path: "/stores";
+      fullPath: "/stores";
+      preLoaderRoute: typeof StoresRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/assets/": {
@@ -127,8 +237,13 @@ declare module "@tanstack/react-router" {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ClassesRoute: ClassesRoute,
+  FailureCodesRoute: FailureCodesRoute,
   HierarchyRoute: HierarchyRoute,
   LoginRoute: LoginRoute,
+  PartsRoute: PartsRoute,
+  PeopleRoute: PeopleRoute,
+  StoresRoute: StoresRoute,
   AssetsAssetIdRoute: AssetsAssetIdRoute,
   AssetsIndexRoute: AssetsIndexRoute,
 };

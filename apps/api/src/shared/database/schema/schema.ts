@@ -18,3 +18,5 @@ export * from "./tenant/tenant.js";
 export * from "./unit-of-measurement/index.js";
 export * from "./views/index.js";
 export * from "./work-master/index.js";
+export * from "./people/index.js";
+export * from "./mro/index.js";

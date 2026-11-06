@@ -22,8 +22,15 @@ async function all<T>(path: string): Promise<T[]> {
     if (!data.meta || page >= data.meta.totalPages) return out;
   }
 }
-async function send<T>(method: "post" | "put", path: string, body: unknown): Promise<T> {
-  const { data } = await http[method]<WebResponse<T>>(`${API}${path}`, body);
+/** A write. Every change by a person except creating a record needs a reason; it goes in x-audit-reason. */
+async function send<T>(
+  method: "post" | "put",
+  path: string,
+  body: unknown,
+  reason?: string,
+): Promise<T> {
+  const headers = reason ? { "x-audit-reason": encodeURIComponent(reason) } : undefined;
+  const { data } = await http[method]<WebResponse<T>>(`${API}${path}`, body, { headers });
   if (data.data == null) throw new Error(data.error ?? `${path} failed`);
   return data.data;
 }
@@ -79,8 +86,15 @@ type AssetType = {
   name: string;
   manufacturer: string;
   model: string;
+  validTo?: string | null;
 };
-type AssetClass = { id: string; code: string; name: string; parentId?: string | null };
+type AssetClass = {
+  id: string;
+  code: string;
+  name: string;
+  parentClassId?: string;
+  validTo?: string | null;
+};
 type MdNode = Omit<HierarchyNode, "assets"> & { children: MdNode[] };
 
 type Registry = {
@@ -95,7 +109,7 @@ type Registry = {
 
 /** Everything the Assets and Hierarchy pages show, read once and joined here. */
 async function getRegistry(): Promise<Registry> {
-  const [{ data: tree }, assets, placements, types, classes] = await Promise.all([
+  const [{ data: tree }, assets, placements, allTypes, allClasses] = await Promise.all([
     http.get<WebResponse<MdNode>>(`${API}/site-hierarchy/tree`),
     all<Asset>("/assets"),
     all<Placement>("/asset-placements"),
@@ -104,6 +118,10 @@ async function getRegistry(): Promise<Registry> {
   ]);
   if (!tree.data) throw new Error(tree.error ?? "hierarchy unavailable");
   const live = placements.filter((p) => !p.validTo);
+  // classes and types that are still in force (a retired one keeps its rows for history)
+  const today = new Date().toISOString().slice(0, 10);
+  const types = allTypes.filter((x) => !x.validTo || x.validTo > today);
+  const classes = allClasses.filter((x) => !x.validTo || x.validTo > today);
   const typeName = new Map(types.map((t) => [t.id, t.name]));
   const paths = new Map<string, string[]>();
   let units = 0;
@@ -189,8 +207,8 @@ const useCreateAsset = () =>
     },
   );
 const useUpdateAsset = () =>
-  useMdMutation(({ id, ...patch }: Partial<AssetInput> & { id: string }) =>
-    send<Asset>("put", `/assets/${id}`, patch),
+  useMdMutation(({ id, reason, ...patch }: Partial<AssetInput> & { id: string; reason: string }) =>
+    send<Asset>("put", `/assets/${id}`, patch, reason),
   );
 /** Move an asset to another work unit: the current placement closes, a new primary one opens today. */
 const useMoveAsset = () =>
@@ -199,21 +217,425 @@ const useMoveAsset = () =>
       assetId,
       workUnitId,
       role,
+      reason,
     }: {
       assetId: string;
       workUnitId: string;
       role: "primary" | "secondary";
+      reason: string;
     }) =>
-      send("post", "/asset-placements", {
-        assetId,
-        workUnitId,
-        placementRole: role,
-        validFrom: new Date().toISOString().slice(0, 10),
-        replace: true,
-        mode: "move",
-      }),
+      send(
+        "post",
+        "/asset-placements",
+        {
+          assetId,
+          workUnitId,
+          placementRole: role,
+          validFrom: new Date().toISOString().slice(0, 10),
+          replace: true,
+          mode: "move",
+        },
+        reason,
+      ),
   );
 
+// ---- site hierarchy ------------------------------------------------------------------------------------------
+type NodeLevel = "enterprise" | "site" | "area" | "work-center" | "work-unit";
+type EditableLevel = Exclude<NodeLevel, "enterprise">;
+type WorkCenterType = "production_line" | "process_cell" | "production_unit" | "storage_zone";
+const WORK_CENTER_TYPES: WorkCenterType[] = [
+  "production_line",
+  "process_cell",
+  "production_unit",
+  "storage_zone",
+];
+/** Each level's endpoint and the field that points at its parent. */
+const LEVEL_API: Record<EditableLevel, { path: string; parent: string }> = {
+  site: { path: "/sites", parent: "enterpriseId" },
+  area: { path: "/areas", parent: "siteId" },
+  "work-center": { path: "/work-centers", parent: "areaId" },
+  "work-unit": { path: "/work-units", parent: "workCenterId" },
+};
+/** The level a node's children have. */
+const CHILD_LEVEL: Partial<Record<NodeLevel, EditableLevel>> = {
+  enterprise: "site",
+  site: "area",
+  area: "work-center",
+  "work-center": "work-unit",
+};
+type NodeInput = { code: string; name: string; type?: WorkCenterType; timezone?: string };
+type NodeRecord = NodeInput & { id: string };
+type Impact = {
+  name: string;
+  descendantCount: number;
+  blockers: { type: string; label: string }[];
+};
+
+async function getNode(level: EditableLevel, id: string): Promise<NodeRecord> {
+  const { data } = await http.get<WebResponse<NodeRecord>>(`${API}${LEVEL_API[level].path}/${id}`);
+  if (data.data == null) throw new Error(data.error ?? "node unavailable");
+  return data.data;
+}
+const useNode = (level: EditableLevel | null, id: string | null) =>
+  useQuery({
+    queryKey: [...mdKey, "node", level, id],
+    queryFn: () => getNode(level!, id!),
+    enabled: !!level && !!id,
+  });
+const useCreateNode = () =>
+  useMdMutation(
+    ({ level, parentId, ...input }: NodeInput & { level: EditableLevel; parentId: string }) =>
+      send<NodeRecord>("post", LEVEL_API[level].path, {
+        ...input,
+        [LEVEL_API[level].parent]: parentId,
+      }),
+  );
+const useUpdateNode = () =>
+  useMdMutation(
+    ({
+      level,
+      id,
+      reason,
+      ...input
+    }: Partial<NodeInput> & { level: EditableLevel; id: string; reason: string }) =>
+      send<NodeRecord>("put", `${LEVEL_API[level].path}/${id}`, input, reason),
+  );
+async function getImpact(kind: EditableLevel, id: string): Promise<Impact> {
+  const { data } = await http.get<WebResponse<Impact>>(`${API}/site-hierarchy/impact`, {
+    params: { kind, id },
+  });
+  if (data.data == null) throw new Error(data.error ?? "impact unavailable");
+  return data.data;
+}
+const useImpact = (kind: EditableLevel | null, id: string | null) =>
+  useQuery({
+    queryKey: [...mdKey, "impact", kind, id],
+    queryFn: () => getImpact(kind!, id!),
+    enabled: !!kind && !!id,
+  });
+const useDeactivateNode = () =>
+  useMdMutation(({ kind, id, reason }: { kind: EditableLevel; id: string; reason: string }) =>
+    send("post", "/site-hierarchy/deactivate", { kind, id }, reason),
+  );
+
+export {
+  CHILD_LEVEL,
+  WORK_CENTER_TYPES,
+  useCreateNode,
+  useDeactivateNode,
+  useImpact,
+  useNode,
+  useUpdateNode,
+};
+export type { EditableLevel, NodeInput, NodeLevel, WorkCenterType };
+// ---- asset classes and types ---------------------------------------------------------------------------------
+type ClassInput = { code: string; name: string; parentClassId: string };
+type TypeInput = {
+  assetClassId: string;
+  code: string;
+  name: string;
+  manufacturer: string;
+  model: string;
+};
+const useSaveClass = () =>
+  useMdMutation(({ id, reason, ...input }: ClassInput & { id?: string; reason?: string }) =>
+    id
+      ? send<AssetClass>("put", `/asset-classes/${id}`, input, reason)
+      : send<AssetClass>("post", "/asset-classes", input),
+  );
+const useSaveType = () =>
+  useMdMutation(({ id, reason, ...input }: TypeInput & { id?: string; reason?: string }) =>
+    id
+      ? send<AssetType>("put", `/asset-types/${id}`, input, reason)
+      : send<AssetType>("post", "/asset-types", { ...input, attributes: {} }),
+  );
+/** A class or type stops from today (never deleted: assets that used it keep their history). */
+const useRetire = () =>
+  useMdMutation(
+    ({ kind, id, reason }: { kind: "asset-classes" | "asset-types"; id: string; reason: string }) =>
+      send("post", `/${kind}/${id}/deactivate`, {}, reason),
+  );
+
+export { useRetire, useSaveClass, useSaveType };
+export type { ClassInput, TypeInput };
+// ---- people --------------------------------------------------------------------------------------------------
+type Person = {
+  id: string;
+  code: string;
+  name: string;
+  username: string;
+  craft: string;
+  skills: string[];
+  siteId: string;
+  shift: string;
+  hourlyRate: string | null;
+  phone: string;
+  validFrom: string;
+  validTo: string | null;
+};
+type PersonInput = Omit<Person, "id" | "validFrom" | "validTo" | "hourlyRate"> & {
+  hourlyRate: number | null;
+};
+const CRAFTS = [
+  "mekanik",
+  "elektrik",
+  "packing_engineering",
+  "process",
+  "utility",
+  "lain",
+] as const;
+const usePeople = () =>
+  useQuery({
+    queryKey: [...mdKey, "people"],
+    queryFn: async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      return (await all<Person>("/people")).filter((x) => !x.validTo || x.validTo > today);
+    },
+  });
+const useSavePerson = () =>
+  useMdMutation(({ id, reason, ...input }: PersonInput & { id?: string; reason?: string }) =>
+    id
+      ? send<Person>("put", `/people/${id}`, input, reason)
+      : send<Person>("post", "/people", input),
+  );
+const useRetirePerson = () =>
+  useMdMutation(({ id, reason }: { id: string; reason: string }) =>
+    send("post", `/people/${id}/deactivate`, {}, reason),
+  );
+
+export { CRAFTS, usePeople, useRetirePerson, useSavePerson };
+export type { Person, PersonInput };
+// ---- crews ---------------------------------------------------------------------------------------------------
+type Crew = {
+  id: string;
+  code: string;
+  name: string;
+  siteId: string;
+  shift: string;
+  leaderId: string;
+  memberIds: string[];
+  validFrom: string;
+  validTo: string | null;
+};
+type CrewInput = Omit<Crew, "id" | "validFrom" | "validTo">;
+const useCrews = () =>
+  useQuery({
+    queryKey: [...mdKey, "crews"],
+    queryFn: async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      return (await all<Crew>("/crews")).filter((x) => !x.validTo || x.validTo > today);
+    },
+  });
+const useSaveCrew = () =>
+  useMdMutation(({ id, reason, ...input }: CrewInput & { id?: string; reason?: string }) =>
+    id ? send<Crew>("put", `/crews/${id}`, input, reason) : send<Crew>("post", "/crews", input),
+  );
+const useRetireCrew = () =>
+  useMdMutation(({ id, reason }: { id: string; reason: string }) =>
+    send("post", `/crews/${id}/deactivate`, {}, reason),
+  );
+
+export { useCrews, useRetireCrew, useSaveCrew };
+export type { Crew, CrewInput };
+// ---- MRO catalogue: items (with valuation), stores, bins, failure codes ------------------------------------------
+type Item = {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  uom: string;
+  critical: boolean;
+  rotable: boolean;
+  minQty: string;
+  maxQty: string | null;
+  leadTimeDays: number | null;
+  unitCost: string | null;
+  batchTracked: boolean;
+  erpCode: string;
+  validFrom: string;
+  validTo: string | null;
+};
+type ItemInput = {
+  code: string;
+  name: string;
+  category: string;
+  uom: string;
+  critical: boolean;
+  rotable: boolean;
+  minQty: number;
+  maxQty: number | null;
+  leadTimeDays: number | null;
+  batchTracked: boolean;
+  erpCode: string;
+  unitCost?: number | null;
+};
+type ItemCost = {
+  id: string;
+  itemId: string;
+  source: "receipt" | "manual";
+  oldCost: string | null;
+  newCost: string;
+  price: string | null;
+  quantity: string | null;
+  onHand: string | null;
+  reference: string;
+  reason: string;
+  byName: string;
+  at: string;
+};
+type MdStore = {
+  id: string;
+  code: string;
+  name: string;
+  siteId: string;
+  workUnitId: string;
+  validTo: string | null;
+};
+type MdBin = { id: string; storeId: string; code: string; tag: string; validTo: string | null };
+type FailureCode = {
+  id: string;
+  iso14224Class: string;
+  kind: "mode" | "mechanism" | "cause";
+  code: string;
+  labelId: string;
+  labelEn: string;
+  custom: boolean;
+  validTo: string | null;
+};
+
+const live = <T extends { validTo: string | null }>(rows: T[]) => {
+  const today = new Date().toISOString().slice(0, 10);
+  return rows.filter((r) => !r.validTo || r.validTo > today);
+};
+const useItems = () =>
+  useQuery({
+    queryKey: [...mdKey, "items"],
+    queryFn: async () => live(await all<Item>("/items")),
+    staleTime: 30_000,
+  });
+const useItemCosts = (id: string | null) =>
+  useQuery({
+    queryKey: [...mdKey, "item-costs", id],
+    queryFn: async () => {
+      const { data } = await http.get<WebResponse<ItemCost[]>>(`${API}/items/${id}/costs`);
+      return data.data ?? [];
+    },
+    enabled: !!id,
+  });
+const useStoresBins = () =>
+  useQuery({
+    queryKey: [...mdKey, "stores"],
+    queryFn: async () => {
+      const [stores, bins] = await Promise.all([all<MdStore>("/stores"), all<MdBin>("/bins")]);
+      return { stores: live(stores), bins: live(bins) };
+    },
+    staleTime: 30_000,
+  });
+const useFailureCodes = () =>
+  useQuery({
+    queryKey: [...mdKey, "failure-codes"],
+    queryFn: async () => live(await all<FailureCode>("/failure-codes")),
+    staleTime: 60_000,
+  });
+
+const useSaveItem = () =>
+  useMdMutation(({ id, reason, ...input }: ItemInput & { id?: string; reason?: string }) =>
+    id ? send<Item>("put", `/items/${id}`, input, reason) : send<Item>("post", "/items", input),
+  );
+/** A revaluation: a new unit cost by hand, always with a reason (receipts arrive from Maintenance). */
+const useRevalue = () =>
+  useMdMutation(
+    ({
+      id,
+      newCost,
+      reason,
+      byName,
+    }: {
+      id: string;
+      newCost: number;
+      reason: string;
+      byName: string;
+    }) => send("post", `/items/${id}/costs`, { source: "manual", newCost, reason, byName }, reason),
+  );
+const useSaveStore = () =>
+  useMdMutation(
+    ({
+      id,
+      reason,
+      ...input
+    }: {
+      id?: string;
+      reason?: string;
+      code: string;
+      name: string;
+      siteId: string;
+    }) =>
+      id
+        ? send<MdStore>("put", `/stores/${id}`, input, reason)
+        : send<MdStore>("post", "/stores", input),
+  );
+const useSaveBin = () =>
+  useMdMutation(
+    ({
+      id,
+      reason,
+      ...input
+    }: {
+      id?: string;
+      reason?: string;
+      storeId: string;
+      code: string;
+      tag: string;
+    }) =>
+      id ? send<MdBin>("put", `/bins/${id}`, input, reason) : send<MdBin>("post", "/bins", input),
+  );
+const useSaveFailureCode = () =>
+  useMdMutation(
+    ({
+      id,
+      reason,
+      ...input
+    }: {
+      id?: string;
+      reason?: string;
+      iso14224Class: string;
+      kind: FailureCode["kind"];
+      code: string;
+      labelId: string;
+      labelEn: string;
+      custom: boolean;
+    }) =>
+      id
+        ? send<FailureCode>("put", `/failure-codes/${id}`, input, reason)
+        : send<FailureCode>("post", "/failure-codes", input),
+  );
+/** Retire a catalogue record (never deleted: stock and work orders keep pointing at it). */
+const useRetireRecord = () =>
+  useMdMutation(
+    ({
+      kind,
+      id,
+      reason,
+    }: {
+      kind: "items" | "stores" | "bins" | "failure-codes";
+      id: string;
+      reason: string;
+    }) => send("post", `/${kind}/${id}/deactivate`, {}, reason),
+  );
+
+export {
+  useFailureCodes,
+  useItemCosts,
+  useItems,
+  useRetireRecord,
+  useRevalue,
+  useSaveBin,
+  useSaveFailureCode,
+  useSaveItem,
+  useSaveStore,
+  useStoresBins,
+};
+export type { FailureCode, Item, ItemCost, ItemInput, MdBin, MdStore };
 export {
   COMPONENT_LEVELS,
   LIFECYCLES,

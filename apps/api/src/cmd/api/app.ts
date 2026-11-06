@@ -28,6 +28,9 @@ import { createPostHandler } from "../../module/post/post-handler.js";
 import { createEnterpriseHandler } from "../../module/mes/enterprise/enterprise-handler.js";
 import { createSitesHandler } from "../../module/mes/sites/sites-handler.js";
 import { createHierarchyDeactivationHandler } from "../../module/mes/site-hierarchy/hierarchy-deactivation-handler.js";
+import { createPeopleHandler } from "../../module/mes/people/people-handler.js";
+import { createCrewsHandler } from "../../module/mes/crews/crews-handler.js";
+import { mountMroCatalog } from "../../module/mes/catalog/mro-catalog.js";
 import { createHierarchyTreeHandler } from "../../module/mes/site-hierarchy/hierarchy-tree-handler.js";
 import { createAreasHandler } from "../../module/mes/areas/areas-handler.js";
 import { createWorkCentersHandler } from "../../module/mes/work-centers/work-centers-handler.js";
@@ -165,6 +168,9 @@ api.route(
   createAssetTypesHandler({ assetTypesService: container.resolve("assetTypesService") }),
 );
 
+api.route("/people", createPeopleHandler({ peopleService: container.resolve("peopleService") }));
+api.route("/crews", createCrewsHandler({ crewsService: container.resolve("crewsService") }));
+mountMroCatalog(api, container);
 api.route("/assets", createAssetsHandler({ assetsService: container.resolve("assetsService") }));
 
 api.route(

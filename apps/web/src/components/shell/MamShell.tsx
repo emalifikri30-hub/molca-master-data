@@ -11,6 +11,11 @@ import {
   Contrast,
   CpuIcon,
   NetworkIcon,
+  ShapesIcon,
+  UsersIcon,
+  PackageIcon,
+  WarehouseIcon,
+  FileWarningIcon,
   Factory,
   HomeIcon,
   Languages,
@@ -69,7 +74,15 @@ import type { HierarchyNode } from "@/lib/types";
 
 type Route = {
   id: string;
-  to: "/" | "/assets" | "/hierarchy";
+  to:
+    | "/"
+    | "/assets"
+    | "/hierarchy"
+    | "/classes"
+    | "/people"
+    | "/parts"
+    | "/stores"
+    | "/failure-codes";
   label: string;
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   group: "overview" | "maintenance" | "field";
@@ -116,6 +129,46 @@ function useRoutes(): Route[] {
       to: "/hierarchy",
       label: t("md.nav.hierarchy"),
       icon: NetworkIcon,
+      group: "maintenance",
+      show: true,
+    },
+    {
+      id: "classes",
+      to: "/classes",
+      label: t("md.nav.classes"),
+      icon: ShapesIcon,
+      group: "maintenance",
+      show: true,
+    },
+    {
+      id: "people",
+      to: "/people",
+      label: t("md.nav.people"),
+      icon: UsersIcon,
+      group: "maintenance",
+      show: true,
+    },
+    {
+      id: "parts",
+      to: "/parts",
+      label: t("md.nav.parts"),
+      icon: PackageIcon,
+      group: "maintenance",
+      show: true,
+    },
+    {
+      id: "stores",
+      to: "/stores",
+      label: t("md.nav.stores"),
+      icon: WarehouseIcon,
+      group: "maintenance",
+      show: true,
+    },
+    {
+      id: "failure-codes",
+      to: "/failure-codes",
+      label: t("md.nav.failureCodes"),
+      icon: FileWarningIcon,
       group: "maintenance",
       show: true,
     },

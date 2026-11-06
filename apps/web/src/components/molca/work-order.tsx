@@ -266,7 +266,6 @@ export const isOpenWorkOrder = (wo: WorkOrder) => !DONE.includes(wo.status);
 /* Time helpers — string based, timezone free (no hydration drift)      */
 /* ------------------------------------------------------------------ */
 
-const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function parts(iso: string) {
   const [d, t = "00:00"] = iso.split("T");
   const [y, m, dd] = d.split("-").map(Number);
@@ -281,7 +280,7 @@ export function woMinutes(iso: string) {
 /** "2 Nov 13.40" (Molca time style) or "2 Nov". */
 export function formatWoDate(iso: string, time = true) {
   const p = parts(iso);
-  const day = `${p.d} ${MON[p.m - 1]}`;
+  const day = `${p.d} ${WO_TEXT.months[p.m - 1]}`;
   return time && iso.includes("T")
     ? `${day} ${String(p.hh).padStart(2, "0")}.${String(p.mi).padStart(2, "0")}`
     : day;
@@ -310,14 +309,14 @@ export function workOrderDue(wo: WorkOrder, now?: string | Date) {
   return {
     overdue: diff < 0,
     label: formatWoDate(wo.dueAt),
-    relative: diff < 0 ? `${span(diff)} overdue` : `in ${span(diff)}`,
+    relative: diff < 0 ? WO_TEXT.overdueBy(span(diff)) : WO_TEXT.inSpan(span(diff)),
   };
 }
 
 export const workOrderActualHours = (wo: WorkOrder) =>
   wo.actualHours ?? (wo.labor ?? []).reduce((s, l) => s + l.hours, 0);
 const fmtH = (h: number) =>
-  (Math.round(h * 10) / 10).toLocaleString("en-US", {
+  (Math.round(h * 10) / 10).toLocaleString(WO_TEXT.numberLocale, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   });
@@ -330,6 +329,123 @@ export const PART_STOCK: Record<PartStock, { label: string; color: string }> = {
   short: { label: "Short", color: "var(--st-small)" },
   out: { label: "Out of stock", color: "var(--st-unplanned)" },
 };
+/**
+ * Every word the work-order views show, English by default. An app in another language passes its own text to
+ * `localizeWorkOrder` (status, type, priority, action and part-stock labels plus these UI strings); the views read
+ * from here, so the component itself never changes.
+ */
+const WO_TEXT_EN = {
+  allTypes: "All types",
+  search: "Search WO, asset, FE…",
+  searchLabel: "Search work orders",
+  typeLabel: "Type",
+  show: "Show",
+  sort: "Sort",
+  sortBy: (k: string) => `Sort by ${k}`,
+  views: { open: "Open", overdue: "Overdue", all: "All" },
+  sortLabel: {
+    priority: "Priority",
+    due: "Due date",
+    id: "Number",
+    status: "Status",
+    asset: "Asset",
+  } as Record<WorkOrderSort, string>,
+  colPriority: "Priority",
+  colOrder: "Work order",
+  colAsset: "Asset · assignee",
+  colStatus: "Status",
+  colDue: "Due",
+  listLabel: "Work orders",
+  noMatch: "No work orders match these filters.",
+  unassigned: "Unassigned",
+  countOf: (n: number, total: number) => `${n} of ${total} work orders`,
+  overdueBy: (span: string) => `${span} overdue`,
+  inSpan: (span: string) => `in ${span}`,
+  lifecycle: "Work order lifecycle",
+  onHold: "On hold",
+  done: ", done",
+  current: ", current",
+  planned: "Planned",
+  orderLabel: (id: string) => `Work order ${id}`,
+  hold: "Hold",
+  tasksOpen: (n: number) => `${n} task${n > 1 ? "s" : ""} still open`,
+  onHoldReason: "On hold:",
+  completeWhen: (total: number, open: number) =>
+    `Complete is available when all ${total} tasks are checked — ${open} open.`,
+  due: "Due",
+  hours: "Hours (actual / plan)",
+  tasks: "Tasks",
+  doneOf: (total: number) => ` / ${total} done`,
+  partsReady: "Parts ready",
+  notAvailable: (n: number) => `${n} not available`,
+  allAvailable: "All available",
+  noParts: "No parts",
+  assignee: "Assignee",
+  requested: "Requested",
+  failureReport: (id: string) => `ISO 14224 failure report ${id}`,
+  noFailure: "No failure report linked",
+  requiredBeforeClose: " — required before close",
+  nOf: (a: number, b: number) => `${a} of ${b}`,
+  safetyStep: "Safety step",
+  noTasks: "No tasks.",
+  labor: "Labor",
+  logged: (h: string) => `${h} h logged`,
+  from: (d: string) => `from ${d}`,
+  noTime: "No time booked yet.",
+  spareParts: "Spare parts",
+  ready: (a: number, b: number) => `${a} of ${b} ready`,
+  onHand: (n: number) => `${n} on hand`,
+  noPartsRequired: "No parts required.",
+  history: "History",
+  changes: (n: number) => `${n} changes`,
+  selectOrder: "Select a work order",
+  months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+  numberLocale: "en-US",
+};
+type WorkOrderText = typeof WO_TEXT_EN;
+type Labelled = { label: string; description?: string };
+export type WorkOrderLocale = Partial<WorkOrderText> & {
+  status?: Partial<Record<WorkOrderStatus, Labelled>>;
+  type?: Partial<Record<WorkOrderType, Labelled>>;
+  priority?: Partial<Record<WorkOrderPriority, Labelled>>;
+  action?: Partial<Record<WorkOrderStatus, string>>;
+  partStock?: Partial<Record<PartStock, string>>;
+};
+const WO_TEXT: WorkOrderText = { ...WO_TEXT_EN };
+const EN_META = {
+  status: Object.fromEntries(
+    Object.entries(WORK_ORDER_STATUS).map(([k, v]) => [
+      k,
+      { label: v.label, description: v.description },
+    ]),
+  ),
+  type: Object.fromEntries(
+    Object.entries(WORK_ORDER_TYPE).map(([k, v]) => [
+      k,
+      { label: v.label, description: v.description },
+    ]),
+  ),
+  priority: Object.fromEntries(Object.entries(WORK_ORDER_PRIORITY).map(([k, v]) => [k, { ...v }])),
+  action: Object.fromEntries(Object.entries(WORK_ORDER_NEXT).map(([k, v]) => [k, v!.label])),
+  partStock: Object.fromEntries(Object.entries(PART_STOCK).map(([k, v]) => [k, v.label])),
+};
+/** Sets the language of the work-order views; call it again on a language change. `undefined` restores English. */
+export function localizeWorkOrder(locale?: WorkOrderLocale) {
+  const l = locale ?? {};
+  const { status, type, priority, action, partStock: stock, ...text } = l;
+  Object.assign(WO_TEXT, WO_TEXT_EN, text);
+  for (const [k, v] of Object.entries(WORK_ORDER_STATUS))
+    Object.assign(v, EN_META.status[k], status?.[k as WorkOrderStatus]);
+  for (const [k, v] of Object.entries(WORK_ORDER_TYPE))
+    Object.assign(v, EN_META.type[k], type?.[k as WorkOrderType]);
+  for (const [k, v] of Object.entries(WORK_ORDER_PRIORITY))
+    Object.assign(v, EN_META.priority[k], priority?.[Number(k) as WorkOrderPriority]);
+  for (const [k, v] of Object.entries(WORK_ORDER_NEXT))
+    v!.label = action?.[k as WorkOrderStatus] ?? EN_META.action[k]!;
+  for (const [k, v] of Object.entries(PART_STOCK))
+    v.label = stock?.[k as PartStock] ?? EN_META.partStock[k]!;
+}
+
 export function partStock(p: WorkOrderPart): PartStock {
   if ((p.issued ?? 0) >= p.qty) return "issued";
   const need = p.qty - (p.issued ?? 0);
@@ -464,13 +580,7 @@ export type WorkOrderListProps = {
   className?: string;
 };
 
-const SORT_LABEL: Record<WorkOrderSort, string> = {
-  priority: "Priority",
-  due: "Due date",
-  id: "Number",
-  status: "Status",
-  asset: "Asset",
-};
+const SORT_KEYS: WorkOrderSort[] = ["priority", "due", "id", "status", "asset"];
 
 function sortOrders(list: WorkOrder[], key: WorkOrderSort, dir: 1 | -1) {
   const order = [...WORK_ORDER_LIFECYCLE, "on-hold", "cancelled"] as WorkOrderStatus[];
@@ -582,7 +692,7 @@ export function WorkOrderList({
     <button
       type="button"
       onClick={() => toggleSort(k)}
-      aria-label={`Sort by ${SORT_LABEL[k]}`}
+      aria-label={WO_TEXT.sortBy(WO_TEXT.sortLabel[k])}
       className={cn(
         "inline-flex items-center gap-1 rounded text-left outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50",
         sort.key === k && "text-foreground",
@@ -613,19 +723,23 @@ export function WorkOrderList({
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search WO, asset, FE…"
-                aria-label="Search work orders"
+                placeholder={WO_TEXT.search}
+                aria-label={WO_TEXT.searchLabel}
                 className="h-8 pl-8 text-[13px]"
               />
             </div>
             <Select value={type} onValueChange={(v) => setType(v as WorkOrderType | "all")}>
-              <SelectTrigger size="sm" aria-label="Type" className="w-auto min-w-32 text-[13px]">
+              <SelectTrigger
+                size="sm"
+                aria-label={WO_TEXT.typeLabel}
+                className="w-auto min-w-32 text-[13px]"
+              >
                 <SelectValue>
-                  {type === "all" ? "All types" : WORK_ORDER_TYPE[type].label}
+                  {type === "all" ? WO_TEXT.allTypes : WORK_ORDER_TYPE[type].label}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="all">{WO_TEXT.allTypes}</SelectItem>
                 {(Object.keys(WORK_ORDER_TYPE) as WorkOrderType[]).map((t) => (
                   <SelectItem key={t} value={t}>
                     {WORK_ORDER_TYPE[t].label}
@@ -637,7 +751,7 @@ export function WorkOrderList({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div
               role="radiogroup"
-              aria-label="Show"
+              aria-label={WO_TEXT.show}
               className="inline-flex gap-0.5 rounded-lg bg-muted p-0.5"
             >
               {(["open", "overdue", "all"] as View[]).map((v) => (
@@ -652,7 +766,7 @@ export function WorkOrderList({
                     view === v && "bg-card text-foreground shadow-xs",
                   )}
                 >
-                  {v === "open" ? "Open" : v === "overdue" ? "Overdue" : "All"}
+                  {WO_TEXT.views[v]}
                   <span
                     className={cn(
                       "tabular-nums",
@@ -675,20 +789,20 @@ export function WorkOrderList({
             >
               <SelectTrigger
                 size="sm"
-                aria-label="Sort"
+                aria-label={WO_TEXT.sort}
                 className="w-auto text-[12.5px] @xl:hidden"
               >
                 <SelectValue>
-                  {SORT_LABEL[sort.key]} {sort.dir === 1 ? "↑" : "↓"}
+                  {WO_TEXT.sortLabel[sort.key]} {sort.dir === 1 ? "↑" : "↓"}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent align="end">
-                {(Object.keys(SORT_LABEL) as WorkOrderSort[]).flatMap((k) => [
+                {SORT_KEYS.flatMap((k) => [
                   <SelectItem key={`${k}:1`} value={`${k}:1`}>
-                    {SORT_LABEL[k]} ↑
+                    {WO_TEXT.sortLabel[k]} ↑
                   </SelectItem>,
                   <SelectItem key={`${k}:-1`} value={`${k}:-1`}>
-                    {SORT_LABEL[k]} ↓
+                    {WO_TEXT.sortLabel[k]} ↓
                   </SelectItem>,
                 ])}
               </SelectContent>
@@ -701,26 +815,26 @@ export function WorkOrderList({
       <div className="hidden grid-cols-[20px_minmax(0,1.6fr)_minmax(0,1fr)_7.5rem_7.5rem] gap-x-3 border-b bg-subtle px-3 py-1.5 text-[12px] text-muted-foreground @xl:grid">
         <span aria-hidden />
         <span className="flex gap-3">
-          <Header k="priority">Priority</Header>
-          <Header k="id">Work order</Header>
+          <Header k="priority">{WO_TEXT.colPriority}</Header>
+          <Header k="id">{WO_TEXT.colOrder}</Header>
         </span>
-        <Header k="asset">Asset · assignee</Header>
-        <Header k="status">Status</Header>
+        <Header k="asset">{WO_TEXT.colAsset}</Header>
+        <Header k="status">{WO_TEXT.colStatus}</Header>
         <Header k="due" className="justify-self-end">
-          Due
+          {WO_TEXT.colDue}
         </Header>
       </div>
 
       <div
         ref={listRef}
         role="listbox"
-        aria-label="Work orders"
+        aria-label={WO_TEXT.listLabel}
         onKeyDown={onKeyDown}
         className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]"
       >
         {rows.length === 0 && (
           <div className="px-4 py-8 text-center text-[13px] text-muted-foreground">
-            No work orders match these filters.
+            {WO_TEXT.noMatch}
           </div>
         )}
         {rows.map((o, i) => {
@@ -768,7 +882,7 @@ export function WorkOrderList({
               </span>
               <span className="min-w-0 truncate text-[12.5px] text-muted-foreground [grid-area:a]">
                 {o.asset.name}
-                <span className="hidden @xl:block">{o.assignee ?? "Unassigned"}</span>
+                <span className="hidden @xl:block">{o.assignee ?? WO_TEXT.unassigned}</span>
                 <span className="@xl:hidden">{o.assignee ? ` · ${o.assignee}` : ""}</span>
               </span>
               <span className="justify-self-end [grid-area:s] @xl:justify-self-start">
@@ -803,7 +917,7 @@ export function WorkOrderList({
         })}
       </div>
       <div className="border-t px-3 py-1.5 text-[12px] text-muted-foreground tabular-nums">
-        {rows.length} of {orders.length} work orders
+        {WO_TEXT.countOf(rows.length, orders.length)}
       </div>
     </div>
   );
@@ -876,7 +990,7 @@ export function WorkOrderLifecycle({
       : WORK_ORDER_LIFECYCLE.indexOf(status);
   const cancelled = status === "cancelled";
   return (
-    <ol aria-label="Work order lifecycle" className={cn("grid grid-cols-7 gap-1", className)}>
+    <ol aria-label={WO_TEXT.lifecycle} className={cn("grid grid-cols-7 gap-1", className)}>
       {WORK_ORDER_LIFECYCLE.map((s, i) => {
         const done = !cancelled && i < idx;
         const current = !cancelled && i === idx;
@@ -906,11 +1020,11 @@ export function WorkOrderLifecycle({
                     : "text-muted-foreground",
               )}
             >
-              {hold ? "On hold" : WORK_ORDER_STATUS[s].label}
+              {hold ? WO_TEXT.onHold : WORK_ORDER_STATUS[s].label}
             </span>
             <span className="sr-only">
               {WORK_ORDER_STATUS[s].label}
-              {done ? ", done" : current ? ", current" : ""}
+              {done ? WO_TEXT.done : current ? WO_TEXT.current : ""}
             </span>
           </li>
         );
@@ -935,7 +1049,7 @@ function HoursBar({ planned, actual }: { planned: number; actual: number }) {
       <div
         className="absolute -top-1 -bottom-1 w-0.5 rounded-full bg-foreground"
         style={{ left: pct(planned) }}
-        title="Planned"
+        title={WO_TEXT.planned}
       />
     </div>
   );
@@ -991,7 +1105,7 @@ function DetailInner({
 
   return (
     <article
-      aria-label={`Work order ${order.id}`}
+      aria-label={WO_TEXT.orderLabel(order.id)}
       className={cn(
         "@container flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border bg-card",
         className,
@@ -1015,7 +1129,7 @@ function DetailInner({
             <WorkOrderStatusBadge status={order.status} />
             {onStatusChange && order.status === "in-progress" && (
               <Button size="sm" variant="outline" onClick={() => onStatusChange(order, "on-hold")}>
-                <Pause /> Hold
+                <Pause /> {WO_TEXT.hold}
               </Button>
             )}
             {onStatusChange && next && (
@@ -1023,9 +1137,7 @@ function DetailInner({
                 size="sm"
                 disabled={blocked}
                 onClick={() => onStatusChange(order, next.to)}
-                title={
-                  blocked ? `${openTasks} task${openTasks > 1 ? "s" : ""} still open` : undefined
-                }
+                title={blocked ? WO_TEXT.tasksOpen(openTasks) : undefined}
               >
                 <next.icon /> {next.label}
               </Button>
@@ -1046,12 +1158,10 @@ function DetailInner({
             )}
             {order.status === "on-hold" ? (
               <span>
-                <b className="font-semibold">On hold:</b> {order.holdReason}
+                <b className="font-semibold">{WO_TEXT.onHoldReason}</b> {order.holdReason}
               </span>
             ) : (
-              <span>
-                Complete is available when all {tasks.length} tasks are checked — {openTasks} open.
-              </span>
+              <span>{WO_TEXT.completeWhen(tasks.length, openTasks)}</span>
             )}
           </div>
         ) : null}
@@ -1062,7 +1172,7 @@ function DetailInner({
         {/* stats */}
         <div className="grid grid-cols-2 gap-2 p-4 pb-0 @2xl:grid-cols-4">
           <Stat
-            label="Due"
+            label={WO_TEXT.due}
             tone={due.overdue ? "danger" : undefined}
             sub={
               due.relative || (isOpenWorkOrder(order) ? "" : WORK_ORDER_STATUS[order.status].label)
@@ -1071,7 +1181,7 @@ function DetailInner({
             {due.label}
           </Stat>
           <Stat
-            label="Hours (actual / plan)"
+            label={WO_TEXT.hours}
             sub={<HoursBar planned={order.plannedHours} actual={actual} />}
           >
             <span className={cn(actual > order.plannedHours && "text-danger")}>{fmtH(actual)}</span>
@@ -1081,7 +1191,7 @@ function DetailInner({
             </span>
           </Stat>
           <Stat
-            label="Tasks"
+            label={WO_TEXT.tasks}
             sub={
               <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-muted">
                 <span
@@ -1095,21 +1205,20 @@ function DetailInner({
           >
             {doneCount}
             <span className="text-[12.5px] font-medium text-muted-foreground">
-              {" "}
-              / {tasks.length} done
+              {WO_TEXT.doneOf(tasks.length)}
             </span>
           </Stat>
           <Stat
-            label="Parts ready"
+            label={WO_TEXT.partsReady}
             sub={
               readyParts < parts.length ? (
                 <span className="font-medium text-foreground">
-                  {parts.length - readyParts} not available
+                  {WO_TEXT.notAvailable(parts.length - readyParts)}
                 </span>
               ) : parts.length ? (
-                "All available"
+                WO_TEXT.allAvailable
               ) : (
-                "No parts"
+                WO_TEXT.noParts
               )
             }
           >
@@ -1124,14 +1233,14 @@ function DetailInner({
         {/* people + failure link */}
         <div className="grid gap-2 p-4 pb-0 @2xl:grid-cols-2">
           <dl className="grid grid-cols-[auto_1fr] content-start gap-x-3 gap-y-1 rounded-xl border px-3 py-2 text-[12.5px]">
-            <dt className="text-muted-foreground">Assignee</dt>
+            <dt className="text-muted-foreground">{WO_TEXT.assignee}</dt>
             <dd className="font-medium">
-              {order.assignee ?? "Unassigned"}
+              {order.assignee ?? WO_TEXT.unassigned}
               {order.crew && (
                 <span className="font-normal text-muted-foreground"> · {order.crew}</span>
               )}
             </dd>
-            <dt className="text-muted-foreground">Requested</dt>
+            <dt className="text-muted-foreground">{WO_TEXT.requested}</dt>
             <dd>
               {order.requestedBy ?? "—"}{" "}
               <span className="text-muted-foreground">· {formatWoDate(order.createdAt)}</span>
@@ -1157,7 +1266,7 @@ function DetailInner({
                 </span>
                 <span
                   className="line-clamp-2 font-medium"
-                  title={`ISO 14224 failure report ${order.failureReport.id}`}
+                  title={WO_TEXT.failureReport(order.failureReport.id)}
                 >
                   {order.failureReport.title}
                 </span>
@@ -1168,8 +1277,8 @@ function DetailInner({
             </button>
           ) : (
             <div className="flex items-center gap-2 rounded-xl border border-dashed px-3 py-2 text-[12.5px] text-muted-foreground">
-              <FileWarning className="size-4" aria-hidden /> No failure report linked
-              {order.type === "corrective" ? " — required before close" : ""}
+              <FileWarning className="size-4" aria-hidden /> {WO_TEXT.noFailure}
+              {order.type === "corrective" ? WO_TEXT.requiredBeforeClose : ""}
             </div>
           )}
         </div>
@@ -1181,7 +1290,7 @@ function DetailInner({
         {/* body */}
         <div className="grid gap-5 p-4 @2xl:grid-cols-2 @2xl:gap-6">
           <div className="grid content-start gap-5">
-            <Panel title="Tasks" meta={`${doneCount} of ${tasks.length}`}>
+            <Panel title={WO_TEXT.tasks} meta={WO_TEXT.nOf(doneCount, tasks.length)}>
               <ul className="grid divide-y rounded-xl border">
                 {tasks.map((t) => {
                   const id = `${order.id}-${t.id}`;
@@ -1207,7 +1316,7 @@ function DetailInner({
                             <ShieldAlert
                               className="mt-0.5 size-3.5 shrink-0"
                               style={{ color: TONE_COLOR.small }}
-                              aria-label="Safety step"
+                              aria-label={WO_TEXT.safetyStep}
                             />
                           )}
                           <span
@@ -1224,11 +1333,13 @@ function DetailInner({
                   );
                 })}
                 {!tasks.length && (
-                  <li className="px-3 py-2 text-[12.5px] text-muted-foreground">No tasks.</li>
+                  <li className="px-3 py-2 text-[12.5px] text-muted-foreground">
+                    {WO_TEXT.noTasks}
+                  </li>
                 )}
               </ul>
             </Panel>
-            <Panel title="Labor" meta={`${fmtH(actual)} h logged`}>
+            <Panel title={WO_TEXT.labor} meta={WO_TEXT.logged(fmtH(actual))}>
               <ul className="grid divide-y rounded-xl border text-[13px]">
                 {(order.labor ?? []).map((l, i) => (
                   <li
@@ -1239,7 +1350,7 @@ function DetailInner({
                       <span className="font-medium">{l.person}</span>
                       {l.craft && <span className="text-muted-foreground"> · {l.craft}</span>}
                       <span className="block text-[12px] text-muted-foreground">
-                        from {formatWoDate(l.start)}
+                        {WO_TEXT.from(formatWoDate(l.start))}
                       </span>
                     </span>
                     <span className="tabular-nums">
@@ -1249,14 +1360,14 @@ function DetailInner({
                 ))}
                 {!(order.labor ?? []).length && (
                   <li className="px-3 py-2 text-[12.5px] text-muted-foreground">
-                    No time booked yet.
+                    {WO_TEXT.noTime}
                   </li>
                 )}
               </ul>
             </Panel>
           </div>
           <div className="grid content-start gap-5">
-            <Panel title="Spare parts" meta={`${readyParts} of ${parts.length} ready`}>
+            <Panel title={WO_TEXT.spareParts} meta={WO_TEXT.ready(readyParts, parts.length)}>
               <ul className="grid divide-y rounded-xl border text-[13px]">
                 {parts.map((p) => {
                   const s = partStock(p);
@@ -1282,9 +1393,9 @@ function DetailInner({
                           >
                             {m.label}
                             {s === "short" || s === "out"
-                              ? ` · ${p.onHand} on hand${p.eta ? ` · ETA ${p.eta}` : ""}`
+                              ? ` · ${WO_TEXT.onHand(p.onHand)}${p.eta ? ` · ETA ${p.eta}` : ""}`
                               : s === "in-stock"
-                                ? ` · ${p.onHand} on hand`
+                                ? ` · ${WO_TEXT.onHand(p.onHand)}`
                                 : ""}
                           </span>
                         </span>
@@ -1294,12 +1405,12 @@ function DetailInner({
                 })}
                 {!parts.length && (
                   <li className="px-3 py-2 text-[12.5px] text-muted-foreground">
-                    No parts required.
+                    {WO_TEXT.noPartsRequired}
                   </li>
                 )}
               </ul>
             </Panel>
-            <Panel title="History" meta={`${history.length} changes`}>
+            <Panel title={WO_TEXT.history} meta={WO_TEXT.changes(history.length)}>
               <ol className="relative grid gap-3 pl-5 before:absolute before:top-1.5 before:bottom-1.5 before:left-[5px] before:w-px before:bg-border">
                 {history.map((h, i) => (
                   <li key={i} className="relative text-[13px]">
@@ -1397,7 +1508,7 @@ export function WorkOrderWorkspace({
           />
         ) : (
           <div className="grid place-items-center rounded-2xl border border-dashed p-8 text-[13px] text-muted-foreground">
-            <Package className="mb-2 size-5" /> Select a work order
+            <Package className="mb-2 size-5" /> {WO_TEXT.selectOrder}
           </div>
         )}
       </div>

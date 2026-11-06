@@ -178,9 +178,20 @@ class HierarchyDeactivationService {
 
   /** Jobs can't be checked → refused, never treated as "nothing running". */
   private async planningJobs(): Promise<PlanningJobs> {
+    // MolcaDx MAM installs run without MES Production Planning: PLANNING_OPTIONAL=true reads "no open jobs"
+    // instead of refusing, since no job order can sit on a work unit there.
+    if (process.env.PLANNING_OPTIONAL === "true") {
+      const optional = await this.planning.executions().catch(() => null);
+      if (!optional) return { workOrders: [], jobOrders: [] };
+      return this.toJobs(optional);
+    }
     const payload = await this.planning.executions().catch((err: unknown) => {
       throw planningUnreachable(err);
     });
+    return this.toJobs(payload);
+  }
+
+  private toJobs(payload: Awaited<ReturnType<typeof this.planning.executions>>): PlanningJobs {
     return {
       workOrders: payload.workOrders.map(({ id, woNumber }) => ({ id, woNumber })),
       jobOrders: payload.jobOrders.map(({ id, workOrderId, workUnitId, status }) => ({
